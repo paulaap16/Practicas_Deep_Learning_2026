@@ -37,6 +37,7 @@ The final deliverable is a **technical report** supported by a public repository
 - **Performance metrics per output class:** Expected quality level for customer usage, for example class-wise precision, recall, F1-score and confusion matrix interpretation.
 - **API documentation:** OpenAPI/Swagger documentation and endpoint behavior (inputs, outputs, and error handling).
 - **Project links:** Link to the Git repository and link to the W&B project/workspace.
+- **Access requirements:** Invite `agascon@comillas.edu` and `rkramer@comillas.edu` to your W&B project/workspace, and make the Git repository public.
 
 To be considered complete, the submission must include:
 
