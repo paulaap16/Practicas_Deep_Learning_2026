@@ -7,21 +7,27 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tempfile import TemporaryDirectory
 
+def get_default_device():
+    """Return CUDA if available, otherwise CPU."""
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class CNN(nn.Module):
     """Convolutional Neural Network model for image classification."""
     
-    def __init__(self, base_model, num_classes, unfreezed_layers=0):
+    def __init__(self, base_model, num_classes, unfreezed_layers=0, device=None):
         """CNN model initializer.
 
         Args:
             base_model: Pre-trained model to use as the base.
             num_classes: Number of classes in the dataset.
             unfreezed_layers: Number of layers to unfreeze from the base model.
+            device: Torch device to use. If None, CUDA is used when available.
 
         """
         super().__init__()
         self.base_model = base_model
         self.num_classes = num_classes
+        self.device = device if device is not None else get_default_device()
         self.feature_extractor = nn.Sequential(*list(self.base_model.children())[:-1])
 
         # Freeze convolutional layers
@@ -39,6 +45,7 @@ class CNN(nn.Module):
             nn.Flatten(),
             nn.LazyLinear(num_classes)
         )
+        self.to(self.device)
 
     def forward(self, x):
         """Forward pass of the model.
@@ -81,6 +88,8 @@ class CNN(nn.Module):
                 train_loss = 0.0
                 train_accuracy = 0.0
                 for images, labels in train_loader:
+                    images = images.to(self.device)
+                    labels = labels.to(self.device)
                     optimizer.zero_grad()
                     outputs = self(images)
                     loss = criterion(outputs, labels)
@@ -103,6 +112,8 @@ class CNN(nn.Module):
                 valid_loss = 0.0
                 valid_accuracy = 0.0
                 for images, labels in valid_loader:
+                    images = images.to(self.device)
+                    labels = labels.to(self.device)
                     outputs = self(images)
                     loss = criterion(outputs, labels)
                     valid_loss += loss.item()
@@ -123,7 +134,7 @@ class CNN(nn.Module):
                         torch.save(self.state_dict(), best_model_path)
                 
             torch.save(self.state_dict(), best_model_path)    
-            self.load_state_dict(torch.load(best_model_path))
+            self.load_state_dict(torch.load(best_model_path, map_location=self.device))
             return history
         
     def predict(self, data_loader):
@@ -138,6 +149,7 @@ class CNN(nn.Module):
         self.eval()
         predicted_labels = []
         for images, _ in data_loader:
+            images = images.to(self.device)
             outputs = self(images)
             predicted_labels.extend(outputs.argmax(1).tolist())
         return predicted_labels
@@ -219,15 +231,17 @@ def load_data(train_dir, valid_dir, batch_size, img_size):
 
     return train_loader, valid_loader, len(train_data.classes)
 
-def load_model_weights(filename: str):
+def load_model_weights(filename: str, device=None):
         """Load a model from disk.
         IMPORTANT: The model must be initialized before loading the weights.
         Args:
             filename: Name of the file to load the model.
+            device: Torch device used for loading (defaults to CUDA if available).
         """
+        target_device = device if device is not None else get_default_device()
         # Full path to the model
         filename = os.path.join('models', filename)
 
         # Load the model
-        state_dict = torch.load(filename+'.pt')
+        state_dict = torch.load(filename+'.pt', map_location=target_device)
         return state_dict
